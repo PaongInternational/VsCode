@@ -1,0 +1,17 @@
+{
+  "settings": {
+    "language": "en",
+    "theme": "dark-blue",
+    "autoBackup": false
+  },
+  "users": [],
+  "projects": [
+    {
+      "name": "default",
+      "createdAt": "2025-10-31T22:34:15.714506Z",
+      "files": [
+        "index.html"
+      ]
+    }
+  ]
+}
