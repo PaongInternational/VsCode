@@ -1,0 +1,10 @@
+{
+  "name": "vscode-termux",
+  "version": "1.0.0-dev",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js"
+  },
+  "author": "Paong & Evelyn",
+  "license": "MIT"
+}
