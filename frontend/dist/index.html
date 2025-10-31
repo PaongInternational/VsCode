@@ -1,0 +1,92 @@
+
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=yes"><title>VsCode-Termux</title>
+<link rel="icon" href="https://cdn.yupra.my.id/yp/qm656enk.jpg">
+<link rel="stylesheet" href="style.css">
+</head><body>
+<div class="app">
+  <div class="sidebar">
+    <img src="https://cdn.yupra.my.id/yp/qm656enk.jpg" style="width:36px;border-radius:6px;margin-bottom:6px">
+    <button title="Explorer" class="btn small">📂</button>
+    <button title="Search" class="btn small">🔎</button>
+    <button title="Git" class="btn small"></button>
+    <button title="Extensions" class="btn small">🧩</button>
+    <div style="flex:1"></div>
+    <button id="openSettings" class="btn small">⚙️</button>
+  </div>
+  <div class="side-panel">
+    <div class="card"><strong>Projects</strong><div id="projectsList" class="small" style="margin-top:8px"></div><div style="margin-top:8px"><button id="newProject" class="btn">+ New</button> <button id="uploadProj" class="btn">Upload</button></div></div>
+    <div class="card"><strong>Plugins</strong><div id="pluginsList" class="small" style="margin-top:8px">No plugins installed</div></div>
+    <div class="card"><strong>Community</strong><div class="small" style="margin-top:6px"><a href="https://discord.gg/h29Hrudn7" target="_blank" style="color:var(--text)">Discord</a><br><a href="https://whatsapp.com/channel/0029Vb6cgi6LSmbec90kZv02" target="_blank" style="color:var(--text)">WhatsApp Channel</a></div></div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="newFile" class="btn">New File</button>
+        <button id="saveFile" class="btn">Save</button>
+        <button id="downloadProject" class="btn">Download</button>
+        <button id="backupGithub" class="btn">Backup</button>
+        <button id="runBtn" class="btn">Run</button>
+      </div>
+      <div style="margin-left:auto" class="small">VsCode-Termux • v1.0.0-dev</div>
+    </div>
+    <div class="workspace">
+      <div class="editor-area">
+        <div class="editor-tabs" id="editorTabs"></div>
+        <div class="editor" id="editorSplit">
+          <div class="editor-left">
+            <div id="editorAreaLeft" style="flex:1;min-height:0"></div>
+            <div class="console" id="console">Console output...</div>
+          </div>
+          <div class="editor-right">
+            <div id="editorAreaRight" style="flex:1;min-height:0"></div>
+            <div class="card"><strong>Outline</strong><div id="outline" class="small"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="preview" id="previewPanel">
+        <div class="card"><strong>Preview</strong><div style="margin-top:8px"><select id="previewMode"><option value="desktop">Desktop</option><option value="mobile">Mobile</option></select> <button id="previewReload" class="btn">Reload</button></div></div>
+        <div class="card"><strong>Problems</strong><div id="problems" class="small" style="margin-top:8px">No problems detected.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- settings modal -->
+<div id="setupModal" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:50">
+  <div style="background:#0f1724;padding:18px;border-radius:8px;width:92%;max-width:720px">
+    <h3>Setup / Login</h3>
+    <input id="displayName" placeholder="Display Name" style="width:100%;padding:8px;border-radius:6px;margin-top:8px">
+    <input id="email" placeholder="Email (optional)" style="width:100%;padding:8px;border-radius:6px;margin-top:8px">
+    <input id="clientId" placeholder="GitHub Client ID" style="width:100%;padding:8px;border-radius:6px;margin-top:8px">
+    <input id="clientSecret" placeholder="GitHub Client Secret" style="width:100%;padding:8px;border-radius:6px;margin-top:8px">
+    <div style="display:flex;gap:8px;margin-top:8px"><select id="langSel" style="padding:8px;border-radius:6px"><option value="en">English</option><option value="id">Indonesia</option><option value="zh">Chinese</option></select><select id="themeSel" style="padding:8px;border-radius:6px"><option value="dark-blue">Dark Blue</option><option value="light">Light</option></select></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px"><label class="small">Auto Backup:</label><input type="checkbox" id="autoBackupToggle" /><div class="small" style="margin-left:auto">When enabled, saves auto-backup to your GitHub repo</div></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><button id="saveSettings" class="btn">Save & Continue</button></div>
+  </div>
+</div>
+
+<div id="toastArea" style="position:fixed;right:18px;top:18px;z-index:9999"></div>
+
+<script>
+// Minimal frontend logic (developer mode)
+function t(msg, type){ const d=document.createElement('div'); d.className='toast'; d.innerText=msg; document.getElementById('toastArea').appendChild(d); setTimeout(()=>d.remove(),3000); console.log('TOAST',msg,type); }
+document.getElementById('openSettings').onclick = function(){ document.getElementById('setupModal').style.display='flex'; }
+document.getElementById('saveSettings').onclick = async function(){ const payload = { displayName: document.getElementById('displayName').value.trim(), email: document.getElementById('email').value.trim(), githubClientId: document.getElementById('clientId').value.trim(), githubClientSecret: document.getElementById('clientSecret').value.trim(), language: document.getElementById('langSel').value, theme: document.getElementById('themeSel').value, autoBackup: document.getElementById('autoBackupToggle').checked }; console.log('Saving settings', payload); await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); document.getElementById('setupModal').style.display='none'; t('Settings saved ✅','success'); }
+const PROJECTS_KEY='VS_PROJS', FS_PREFIX='VS_FS_';
+if(!JSON.parse(localStorage.getItem(PROJECTS_KEY)||'[]').length){ localStorage.setItem(PROJECTS_KEY, JSON.stringify(['default'])); localStorage.setItem(FS_PREFIX+'default', JSON.stringify({'index.html':'<!doctype html>\n<html>\n<body>\n<h1>VsCode-Termux</h1>\n</body>\n</html>'})); }
+function renderProjects(){ const list = JSON.parse(localStorage.getItem(PROJECTS_KEY)||'[]'); const elp = document.getElementById('projectsList'); elp.innerHTML=''; list.forEach(function(p){ const d=document.createElement('div'); d.textContent=p; d.style.padding='6px'; d.style.borderBottom='1px solid rgba(255,255,255,0.03)'; d.onclick=function(){ openProject(p); }; elp.appendChild(d); }); }
+renderProjects();
+function openProject(name){ const fs = JSON.parse(localStorage.getItem(FS_PREFIX+name)||'{}'); const first = Object.keys(fs)[0]||'index.html'; window.currentProject = name; window.currentFile = first; if(window.leftEditor) window.leftEditor.setValue(fs[first]||''); t('Project opened: '+name); }
+openProject('default');
+if(typeof require==='undefined'){ var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.21.2/min/vs/loader.min.js'; document.head.appendChild(s); s.onload=initMonaco; } else initMonaco();
+function initMonaco(){ require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.21.2/min/vs' } }); require(['vs/editor/editor.main'], function() { window.leftEditor = monaco.editor.create(document.getElementById('editorAreaLeft'), { value: '<!doctype html>\n<html>\n<body>\n<h1>VsCode-Termux</h1>\n</body>\n</html>', language:'html', theme:'vs-dark', automaticLayout:true, minimap:{enabled:true} }); window.rightEditor = monaco.editor.create(document.getElementById('editorAreaRight'), { value: '// Console', language:'javascript', theme:'vs-dark', automaticLayout:true, minimap:{enabled:false} }); leftEditor.onDidChangeModelContent(function(){ const txt = leftEditor.getValue(); const headers = (txt.match(/<h[1-6]>.*?<\/h[1-6]>/g)||[]).map(function(s){return s.replace(/<.*?>/g,'')}); document.getElementById('outline').innerText = headers.join('\n'); }); }
+document.getElementById('newProject').onclick = function(){ const name = prompt('Project name'); if(!name) return; const list = JSON.parse(localStorage.getItem(PROJECTS_KEY)||'[]'); list.push(name); localStorage.setItem(PROJECTS_KEY, JSON.stringify(list)); localStorage.setItem(FS_PREFIX+name, JSON.stringify({'index.html':'<!doctype html>\n<html>\n<body>\n<h1>'+name+'</h1>\n</body>\n</html>'})); renderProjects(); openProject(name); t('Project created'); };
+document.getElementById('newFile').onclick = function(){ const name = prompt('New file name (eg: index.html)'); if(!name) return; const proj = window.currentProject || 'default'; const fs = JSON.parse(localStorage.getItem(FS_PREFIX+proj)||'{}'); fs[name] = '<!doctype html>\n<html>\n<body>\n<h1>New File</h1>\n</body>\n</html>'; localStorage.setItem(FS_PREFIX+proj, JSON.stringify(fs)); if(window.leftEditor) window.leftEditor.setValue(fs[name]); window.currentFile = name; renderProjects(); t('File created'); };
+document.getElementById('saveFile').onclick = async function(){ const proj = window.currentProject||'default'; const file = window.currentFile||'index.html'; const content = window.leftEditor ? window.leftEditor.getValue() : ''; const fs = JSON.parse(localStorage.getItem(FS_PREFIX+proj)||'{}'); fs[file]=content; localStorage.setItem(FS_PREFIX+proj, JSON.stringify(fs)); console.log('Saving file', proj, file); await fetch('/api/files/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ project:proj, path:file, content })}); t('Saved ✅'); };
+document.getElementById('downloadProject').onclick = async function(){ const proj = window.currentProject||'default'; const r = await fetch('/api/files/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ project:proj })}); if(r.ok){ const blob = await r.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = proj+'.zip'; a.click(); t('Download started'); } else t('Download failed','error'); };
+document.getElementById('backupGithub').onclick = async function(){ const proj = window.currentProject||'default'; const token = prompt('Paste your GitHub token (will not be sent elsewhere)'); if(!token) return; const r = await fetch('/api/github/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ project:proj, token })}); const j = await r.json(); if(j.ok) t('Backup complete'); else t('Backup failed'); };
+document.getElementById('runBtn').onclick = async function(){ const proj = window.currentProject||'default'; const file = window.currentFile||'index.html'; const r = await fetch('/api/run',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ project:proj, path:file }) }); const j = await r.json(); if(!j.ok) t('Run failed'); else t('Run started: '+j.id); };
+document.getElementById('previewReload').onclick = function(){ const code = window.leftEditor ? window.leftEditor.getValue() : ''; const blob = new Blob([code], { type:'text/html' }); document.getElementById('previewPanel').querySelector('iframe')?.remove(); const iframe = document.createElement('iframe'); iframe.style.width = document.getElementById('previewMode').value==='mobile'?'375px':'1024px'; iframe.style.height='420px'; iframe.style.border='0'; iframe.style.borderRadius='6px'; iframe.style.marginTop='8px'; iframe.src = URL.createObjectURL(blob); document.getElementById('previewPanel').appendChild(iframe); t('Preview reloaded'); };
+</script>
+</body></html>
