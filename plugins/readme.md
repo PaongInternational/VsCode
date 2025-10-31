@@ -1,0 +1,1 @@
+Plugins folder: drop plugin folders here (each plugin is a folder with plugin.json + main.js).
