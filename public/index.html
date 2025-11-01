@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- Prevent mobile auto-zoom; inputs/font-size >=16 to avoid iOS zoom -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VsCode-Termux — Web IDE (Single File Professional)</title>
+  <link rel="icon" href="https://cdn.yupra.my.id/yp/qm656enk.jpg">
+  <style>
+    /* ===== Global / Theme ===== */
+    :root{
+      --bg:#0b1220; --panel:#0f1724; --muted:#9fb2c9; --accent:#0078D4; --text:#e6eef6;
+      --border: rgba(255,255,255,0.04);
+      --glass: rgba(255,255,255,0.02);
+      --radius: 10px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Fira Code", monospace;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; -webkit-font-smoothing:antialiased;}
+    a{color:var(--accent);text-decoration:none}
+    button{font-family:inherit}
+
+    /* ===== App Layout ===== */
+    .app{display:flex;flex-direction:column;height:100vh;min-height:0;overflow:hidden}
+    /* Topbar */
+    .topbar{height:56px;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+    .brand{display:flex;align-items:center;gap:10px}
+    .brand img{width:36px;height:36px;border-radius:8px}
+    .brand .title{font-weight:700;color:var(--accent);letter-spacing:0.2px}
+    .top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+    .icon-btn{background:transparent;border:1px solid transparent;color:var(--text);padding:8px;border-radius:8px;cursor:pointer}
+    .icon-btn:hover{background:rgba(255,255,255,0.02)}
+    .txt-muted{color:var(--muted);font-size:13px}
+
+    /* Main area */
+    .main{flex:1;display:flex;min-height:0;overflow:hidden}
+    /* left icon bar */
+    .iconbar{width:60px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 6px;gap:8px}
+    .icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer}
+    .icon.active{background:rgba(255,255,255,0.02);color:var(--text)}
+    .icon.small{width:36px;height:36px;border-radius:8px}
+
+    /* explorer (left panel) */
+    .explorer{width:280px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0;transition:width .16s ease}
+    .explorer .head{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid var(--border)}
+    .explorer .head .title{font-weight:700;color:var(--muted)}
+    .explorer .list{padding:10px;overflow:auto;flex:1}
+    .file-item{padding:8px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer}
+    .file-item:hover{background:rgba(255,255,255,0.02)}
+    .file-item.active{background:var(--accent);color:white}
+    .explorer .foot{padding:10px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+
+    /* workspace & tabs */
+    .workspace{flex:1;display:flex;flex-direction:column;min-width:0}
+    .tabs{height:44px;background:#0f1724;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:6px 8px;overflow:auto}
+    .tab{padding:8px 12px;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
+    .tab.active{background:rgba(255,255,255,0.03);color:var(--text)}
+    .content{flex:1;display:flex;min-height:0}
+    .editor-col{flex:1;display:flex;flex-direction:column;min-height:0}
+
+    /* Monaco container */
+    #editor{height:100%;min-height:0;outline:none}
+
+    /* right panel */
+    .right{width:420px;border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+    .right .r-tabs{height:44px;display:flex;align-items:center;padding:6px 8px;gap:8px;border-bottom:1px solid var(--border)}
+    .rbtn{padding:8px 12px;border-radius:8px;background:transparent;color:var(--muted);border:none;cursor:pointer}
+    .rbtn.active{background:rgba(255,255,255,0.02);color:var(--text)}
+    .rbody{padding:12px;overflow:auto;flex:1}
+    .console{background:#050505;padding:12px;border-radius:8px;color:#9fe79f;height:100%;font-family:var(--mono);font-size:13px;overflow:auto}
+
+    .term-row{display:flex;gap:8px;margin-top:10px}
+    .term-row input{flex:1;padding:10px;border-radius:8px;border:1px solid #222;background:#0b0b0b;color:#fff;font-size:16px}
+
+    /* keyboard bar minimalis */
+    .kb-bar{position:fixed;left:86px;right:460px;bottom:18px;height:50px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:6px;display:flex;align-items:center;gap:8px;z-index:60;border:1px solid var(--border);backdrop-filter: blur(6px)}
+    .kb-btn{padding:8px 12px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.02);color:var(--text);cursor:pointer}
+    .kb-btn.active{background:rgba(0,120,212,0.12);color:var(--accent);border-color:rgba(0,120,212,0.22)}
+
+    /* status bar */
+    .statusbar{height:32px;background:#0f1724;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;color:var(--muted)}
+
+    /* modal (glassmorphism) */
+    .modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,0.6);z-index:80}
+    .modal{width:92%;max-width:560px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:18px;border:1px solid var(--border);box-shadow:0 12px 34px rgba(2,6,23,0.6);transform:scale(.98);opacity:0;transition:all .18s ease}
+    .modal.show{transform:scale(1);opacity:1}
+    .modal h3{margin-bottom:8px;color:var(--muted)}
+    .modal input, .modal select{width:100%;padding:12px;border-radius:8px;border:1px solid #222;background:#07101a;color:var(--text);font-size:16px}
+
+    /* responsive */
+    @media(max-width:1100px){ .kb-bar{right:18px} .right{width:360px} }
+    @media(max-width:900px){ .explorer{display:none} .right{display:none} .kb-bar{left:70px;right:18px} }
+
+    /* accessibility: inputs >=16 to prevent iOS zoom */
+    input,textarea,select{font-size:16px}
+  </style>
+
+  <!-- Monaco Editor loader (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="brand">
+        <img src="https://cdn.yupra.my.id/yp/qm656enk.jpg" alt="logo">
+        <div class="title">VsCode-Termux</div>
+        <div class="txt-muted" style="margin-left:8px">v1.0.0-dev</div>
+      </div>
+
+      <div class="top-actions">
+        <div class="txt-muted" id="workspace-label">Workspace: default</div>
+        <button class="icon-btn" id="btn-new">New</button>
+        <button class="icon-btn" id="btn-upload">Upload</button>
+        <button class="icon-btn" id="btn-download">Download</button>
+        <button class="icon-btn" id="btn-preview">Preview</button>
+        <button class="icon-btn" id="btn-settings">Settings</button>
+        <button class="icon-btn" id="btn-about">About</button>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+      <!-- Iconbar -->
+      <div class="iconbar">
+        <div>
+          <div class="icon active" data-pane="explorer" title="Explorer">📂</div>
+          <div class="icon" data-pane="search" title="Search">🔎</div>
+          <div class="icon" data-pane="git" title="Git"></div>
+          <div class="icon" data-pane="debug" title="Debug">🐞</div>
+          <div class="icon" data-pane="ext" title="Extensions">🧩</div>
+        </div>
+        <div style="margin-bottom:6px">
+          <div class="icon small" id="btn-collapse" title="Collapse">◀</div>
+        </div>
+      </div>
+
+      <!-- Explorer Panel -->
+      <div class="explorer" id="explorer">
+        <div class="head">
+          <div class="title">File Explorer</div>
+          <div class="txt-muted">Local</div>
+        </div>
+        <div class="list" id="file-list"></div>
+        <div class="foot">
+          <button class="icon-btn" id="new-file-btn">New File</button>
+          <button class="icon-btn" id="new-project-btn">New Project</button>
+        </div>
+      </div>
+
+      <!-- Workspace -->
+      <div class="workspace">
+        <div class="tabs" id="tabs"></div>
+        <div class="content">
+          <div class="editor-col">
+            <div id="editor" aria-label="Code editor"></div>
+          </div>
+
+          <!-- Right Panel -->
+          <div class="right" id="right">
+            <div class="r-tabs">
+              <button class="rbtn active" data-right="preview">Preview</button>
+              <button class="rbtn" data-right="console">Debug Console</button>
+              <button class="rbtn" data-right="terminal">Terminal</button>
+            </div>
+            <div class="rbody">
+              <div id="preview-area"><iframe id="live-frame" style="width:100%;height:100%;border:0;background:#fff"></iframe></div>
+              <div id="console-area" style="display:none"><div class="console" id="debug-console"></div></div>
+              <div id="terminal-area" style="display:none">
+                <div class="console" id="term-log"></div>
+                <div class="term-row">
+                  <input id="term-input" placeholder="Type shell command (dummy) and press Enter">
+                  <button id="term-send" class="icon-btn">Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- main end -->
+
+    <!-- Statusbar -->
+    <div class="statusbar">
+      <div id="status-left">Ready • Local</div>
+      <div id="status-right">Ln 1, Col 1</div>
+    </div>
+  </div>
+
+  <!-- Keyboard Bar (minimal) -->
+  <div class="kb-bar" id="kb-bar" role="toolbar" aria-hidden="false">
+    <button class="kb-btn" id="kb-ctrl">Ctrl</button>
+    <button class="kb-btn" id="kb-alt">Alt</button>
+    <button class="kb-btn" id="kb-tab">Tab</button>
+    <button class="kb-btn" id="kb-esc">Esc</button>
+    <div style="width:10px"></div>
+    <button class="kb-btn" id="kb-left">←</button>
+    <button class="kb-btn" id="kb-right">→</button>
+    <div style="width:10px"></div>
+    <button class="kb-btn" id="kb-undo">Undo</button>
+    <button class="kb-btn" id="kb-redo">Redo</button>
+  </div>
+
+  <!-- Modal Backdrop -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal" id="modal">
+      <h3 id="modal-title">Modal Title</h3>
+      <div id="modal-body"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="icon-btn" id="modal-cancel">Cancel</button>
+        <button class="icon-btn" id="modal-confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-backdrop" id="settings-backdrop" style="display:none">
+    <div class="modal show">
+      <h3>Settings</h3>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label class="txt-muted">Theme</label>
+        <select id="setting-theme" style="padding:10px;border-radius:8px;background:#07101a;color:var(--text);border:1px solid #222;font-size:16px">
+          <option value="dark">Dark (Default)</option>
+          <option value="light">Light</option>
+        </select>
+
+        <label class="txt-muted">Language</label>
+        <select id="setting-lang" style="padding:10px;border-radius:8px;background:#07101a;color:var(--text);border:1px solid #222;font-size:16px">
+          <option value="en">English</option>
+          <option value="id">Indonesia</option>
+          <option value="zh">中文</option>
+        </select>
+
+        <label class="txt-muted">Auto Backup</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="setting-autoback">
+          <div class="txt-muted">When enabled, sync to GitHub (via token) — later integration</div>
+        </div>
+
+        <label class="txt-muted">GitHub OAuth (Client ID & Secret)</label>
+        <input id="gh-client" placeholder="Client ID" />
+        <input id="gh-secret" placeholder="Client Secret" />
+
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="icon-btn" id="settings-save">Save Settings</button>
+          <button class="icon-btn" id="settings-close">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About Modal -->
+  <div class="modal-backdrop" id="about-backdrop" style="display:none">
+    <div class="modal show">
+      <h3>About VsCode-Termux</h3>
+      <p class="txt-muted">A lightweight, Termux-friendly Web IDE inspired by Visual Studio Code. Built by <strong>Paong & Evelyn</strong>.</p>
+      <p class="txt-muted">Join our community:</p>
+      <ul>
+        <li><a href="https://discord.gg/h29Hrudn7" target="_blank">Official Discord</a></li>
+        <li><a href="https://whatsapp.com/channel/0029Vb6cgi6LSmbec90kZv02" target="_blank">Official WhatsApp Channel</a></li>
+        <li><a href="https://github.com/PaongInternational/VsCode" target="_blank">GitHub Repo</a></li>
+      </ul>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button class="icon-btn" onclick="document.getElementById('about-backdrop').style.display='none'">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+  /* =========================
+     App: single-file frontend
+     - Monaco editor (CDN)
+     - File Explorer (localStorage)
+     - Tabs, Preview, Console, Terminal (dummy)
+     - Settings modal & About modal
+     - Keyboard bar minimal (Ctrl combos)
+     ========================= */
+
+  // Storage keys
+  const FILES_KEY = 'vst_files_v1';
+  const SETTINGS_KEY = 'vst_settings_v1';
+
+  // Load/sync initial data
+  let files = JSON.parse(localStorage.getItem(FILES_KEY) || '{}');
+  if(!files['index.html']) files['index.html'] = `<!doctype html>
+  <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head><body><h1>VsCode-Termux</h1><p>Welcome.</p></body></html>`;
+  localStorage.setItem(FILES_KEY, JSON.stringify(files));
+
+  let settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  settings.theme = settings.theme || 'dark';
+  settings.lang = settings.lang || 'en';
+  settings.autoBackup = settings.autoBackup || false;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+
+  // Elements
+  const tabsEl = document.getElementById('tabs');
+  const fileListEl = document.getElementById('file-list');
+  const statusLeft = document.getElementById('status-left');
+  const statusRight = document.getElementById('status-right');
+  const workspaceLabel = document.getElementById('workspace-label');
+  const debugConsole = document.getElementById('debug-console');
+  const termLog = document.getElementById('term-log');
+  const liveFrame = document.getElementById('live-frame');
+
+  // Monaco init
+  let editor = null;
+  require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' }});
+  require(['vs/editor/editor.main'], function() {
+    editor = monaco.editor.create(document.getElementById('editor'), {
+      value: files['index.html'],
+      language: 'html',
+      theme: 'vs-dark',
+      automaticLayout: true,
+      minimap: { enabled: false }
+    });
+
+    // tabs & active
+    addTab('index.html');
+    setActiveTab('index.html');
+
+    // cursor pos
+    editor.onDidChangeCursorPosition(()=> {
+      const pos = editor.getPosition();
+      statusRight.textContent = `Ln ${pos.lineNumber}, Col ${pos.column}`;
+    });
+
+    // autosave debounce
+    let timer = null;
+    editor.onDidChangeModelContent(()=> {
+      if(!currentFile) return;
+      clearTimeout(timer);
+      timer = setTimeout(()=> {
+        files[currentFile] = editor.getValue();
+        localStorage.setItem(FILES_KEY, JSON.stringify(files));
+        setStatus('Autosaved');
+        refreshFileList();
+      },700);
+    });
+
+    // focus accessibility
+    document.getElementById('editor').addEventListener('click', ()=> editor.focus());
+  });
+
+  // Tabs & files state
+  let currentFile = null;
+  function addTab(name){
+    if(Array.from(tabsEl.children).some(c=>c.textContent===name)) return;
+    const btn = document.createElement('button');
+    btn.className = 'tab';
+    btn.textContent = name;
+    btn.onclick = ()=> setActiveTab(name);
+    tabsEl.appendChild(btn);
+  }
+  function setActiveTab(name){
+    currentFile = name;
+    Array.from(tabsEl.children).forEach(t=> t.classList.toggle('active', t.textContent===name));
+    Array.from(fileListEl.children).forEach(el=> el.classList.toggle('active', el.dataset.name===name));
+    if(editor) editor.setValue(files[name]||'');
+    workspaceLabel.textContent = 'Workspace: default • ' + name;
+    setStatus('Opened ' + name);
+  }
+
+  function refreshFileList(){
+    fileListEl.innerHTML = '';
+    Object.keys(files).forEach(n=>{
+      const row = document.createElement('div');
+      row.className = 'file-item';
+      row.dataset.name = n;
+      row.innerHTML = `<div style="flex:1">${n}</div><div style="opacity:.6;font-size:12px">${(files[n]||'').length}b</div>`;
+      row.onclick = ()=> { addTab(n); setActiveTab(n); };
+      if(n===currentFile) row.classList.add('active');
+      fileListEl.appendChild(row);
+    });
+  }
+
+  refreshFileList();
+
+  // File actions
+  document.getElementById('new-file-btn').onclick = ()=> {
+    showModal('Create New File', `<input id="new-fname" placeholder="filename e.g. app.js or index.html" />`, ()=> {
+      const name = document.getElementById('new-fname').value.trim();
+      if(!name){ alert('Provide filename'); return; }
+      if(files[name]){ alert('File exists'); return; }
+      files[name] = '';
+      localStorage.setItem(FILES_KEY, JSON.stringify(files));
+      addTab(name); setActiveTab(name); refreshFileList();
+      hideModal();
+      setStatus('Created ' + name);
+    });
+  };
+
+  document.getElementById('new-project-btn').onclick = ()=> {
+    showModal('Create New Project', `<input id="proj-name" placeholder="project name" />`, ()=> {
+      const n = document.getElementById('proj-name').value.trim() || ('project-'+Date.now());
+      workspaceLabel.textContent = `Workspace: ${n}`;
+      hideModal();
+      setStatus('Project created: ' + n);
+    });
+  };
+
+  document.getElementById('btn-new').onclick = ()=> document.getElementById('new-file-btn').click();
+
+  document.getElementById('btn-upload').onclick = ()=> {
+    const inp = document.createElement('input'); inp.type='file'; inp.multiple=true;
+    inp.onchange = e => {
+      Array.from(e.target.files).forEach(f=>{
+        const r = new FileReader();
+        r.onload = ev => { files[f.name] = ev.target.result; localStorage.setItem(FILES_KEY, JSON.stringify(files)); refreshFileList(); setStatus('Uploaded '+f.name); };
+        r.readAsText(f);
+      });
+    };
+    inp.click();
+  };
+
+  document.getElementById('btn-download').onclick = ()=> {
+    if(!currentFile) return alert('Open a file first');
+    const blob = new Blob([files[currentFile]||''], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=currentFile; a.click();
+    setStatus('Downloaded ' + currentFile);
+  };
+
+  // Preview
+  document.getElementById('btn-preview').onclick = runPreview;
+  function runPreview(){
+    if(!currentFile) return alert('Open a file first');
+    const code = files[currentFile] = (editor ? editor.getValue() : files[currentFile]);
+    localStorage.setItem(FILES_KEY, JSON.stringify(files));
+    refreshFileList();
+    const doc = liveFrame.contentWindow.document;
+    doc.open(); doc.write(code); doc.close();
+    setStatus('Preview updated');
+    dbg('Preview run: ' + currentFile);
+  }
+
+  // Right panel tabs
+  Array.from(document.querySelectorAll('.r-tabs .rbtn')).forEach(btn=>{
+    btn.onclick = ()=> {
+      Array.from(document.querySelectorAll('.r-tabs .rbtn')).forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.right;
+      document.getElementById('preview-area').style.display = mode==='preview' ? 'block' : 'none';
+      document.getElementById('console-area').style.display = mode==='console' ? 'block' : 'none';
+      document.getElementById('terminal-area').style.display = mode==='terminal' ? 'block' : 'none';
+    };
+  });
+
+  // Terminal (dummy)
+  document.getElementById('term-send').onclick = ()=> {
+    const v = document.getElementById('term-input').value.trim();
+    if(!v) return;
+    termLog.innerHTML += `<div style="color:#9fe79f">> ${v}</div>`;
+    document.getElementById('term-input').value='';
+    termLog.scrollTop = termLog.scrollHeight;
+  };
+
+  // Debug console helper
+  function dbg(msg){ const c = document.getElementById('debug-console'); c.innerHTML += `<div>${msg}</div>`; c.scrollTop = c.scrollHeight; }
+
+  // Keyboard bar minimalistic
+  let ctrlActive=false, altActive=false;
+  const kbCtrl = document.getElementById('kb-ctrl'), kbAlt = document.getElementById('kb-alt'), kbTab = document.getElementById('kb-tab');
+  const kbEsc = document.getElementById('kb-esc'), kbLeft = document.getElementById('kb-left'), kbRight = document.getElementById('kb-right');
+  const kbUndo = document.getElementById('kb-undo'), kbRedo = document.getElementById('kb-redo');
+
+  function updateKb(){ kbCtrl.classList.toggle('active',ctrlActive); kbAlt.classList.toggle('active',altActive); }
+  kbCtrl.onclick = ()=> { ctrlActive=!ctrlActive; updateKb(); editor && editor.focus(); dbg('Ctrl ' + (ctrlActive ? 'ON' : 'OFF')); }
+  kbAlt.onclick = ()=> { altActive=!altActive; updateKb(); editor && editor.focus(); dbg('Alt ' + (altActive ? 'ON' : 'OFF')); }
+  kbTab.onclick = ()=> { editor && editor.trigger('keyboard','type',{text:'\t'}); editor && editor.focus(); }
+  kbEsc.onclick = ()=> { editor && editor.trigger('keyboard','escape',{}); editor && editor.focus(); }
+  kbLeft.onclick = ()=> { editor && editor.trigger('cursorLeft','cursorLeft',{}); editor && editor.focus(); }
+  kbRight.onclick = ()=> { editor && editor.trigger('cursorRight','cursorRight',{}); editor && editor.focus(); }
+  kbUndo.onclick = ()=> { editor && editor.trigger('undo','undo',{}); editor && editor.focus(); }
+  kbRedo.onclick = ()=> { editor && editor.trigger('redo','redo',{}); editor && editor.focus(); }
+
+  // Ctrl combos while ctrlActive
+  document.addEventListener('keydown', e=>{
+    if(ctrlActive){
+      const k = e.key.toLowerCase();
+      if(k==='s'){ e.preventDefault(); saveCurrent(); ctrlActive=false; updateKb(); dbg('[kbd] Ctrl+S (save)'); }
+      else if(k==='a'){ e.preventDefault(); editor && editor.trigger('editor.action.selectAll',{}); ctrlActive=false; updateKb(); dbg('[kbd] Ctrl+A (select)'); }
+      else if(k==='z'){ e.preventDefault(); editor && editor.trigger('undo',{}); ctrlActive=false; updateKb(); dbg('[kbd] Ctrl+Z (undo)'); }
+      else if(k==='y'){ e.preventDefault(); editor && editor.trigger('redo',{}); ctrlActive=false; updateKb(); dbg('[kbd] Ctrl+Y (redo)'); }
+      else if(k==='p'){ e.preventDefault(); runPreview(); ctrlActive=false; updateKb(); dbg('[kbd] Ctrl+P (preview)'); }
+    }
+  });
+
+  // Save function
+  function saveCurrent(){ if(!currentFile) return; files[currentFile] = editor.getValue(); localStorage.setItem(FILES_KEY, JSON.stringify(files)); setStatus('Saved ' + currentFile); refreshFileList(); }
+
+  // Global Ctrl+S handler
+  document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); saveCurrent(); } });
+
+  // Status helper
+  function setStatus(s){
+    statusLeft.textContent = s;
+    setTimeout(()=>{ if(statusLeft.textContent === s) statusLeft.textContent = 'Ready • Local' }, 1600);
+  }
+
+  // Modal utilities
+  const modalBackdrop = document.getElementById('modal-backdrop');
+  const modalBox = document.getElementById('modal');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalConfirm = document.getElementById('modal-confirm');
+  const modalCancel = document.getElementById('modal-cancel');
+
+  function showModal(title, bodyHTML, confirmCb, cancelCb){
+    modalTitle.textContent = title;
+    modalBody.innerHTML = bodyHTML;
+    modalBackdrop.style.display = 'flex';
+    setTimeout(()=> modalBox.classList.add('show'), 10);
+    modalConfirm.onclick = ()=> { confirmCb && confirmCb(); };
+    modalCancel.onclick = ()=> { hideModal(); cancelCb && cancelCb(); };
+  }
+  function hideModal(){ modalBackdrop.style.display = 'none'; modalBox.classList.remove('show'); }
+
+  // Settings modal
+  const settingsBackdrop = document.getElementById('settings-backdrop');
+  document.getElementById('btn-settings').onclick = ()=> {
+    // sync UI
+    document.getElementById('setting-theme').value = settings.theme;
+    document.getElementById('setting-lang').value = settings.lang;
+    document.getElementById('setting-autoback').checked = settings.autoBackup;
+    document.getElementById('gh-client').value = settings.gh_client || '';
+    document.getElementById('gh-secret').value = settings.gh_secret || '';
+    settingsBackdrop.style.display = 'flex';
+  };
+  document.getElementById('settings-close').onclick = ()=> settingsBackdrop.style.display = 'none';
+  document.getElementById('settings-save').onclick = ()=> {
+    settings.theme = document.getElementById('setting-theme').value;
+    settings.lang = document.getElementById('setting-lang').value;
+    settings.autoBackup = document.getElementById('setting-autoback').checked;
+    settings.gh_client = document.getElementById('gh-client').value.trim();
+    settings.gh_secret = document.getElementById('gh-secret').value.trim();
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    settingsBackdrop.style.display = 'none';
+    setStatus('Settings saved');
+  };
+
+  // About modal
+  document.getElementById('btn-about').onclick = ()=> document.getElementById('about-backdrop').style.display='flex';
+
+  // Small utilities
+  function dbgWelcome(){ dbg('VsCode-Termux — single-file UI loaded'); setStatus('Ready • Local'); }
+  dbgWelcome();
+
+  // Ensure editor exists before operations
+  function ensureEditorReady(cb){
+    if(window.editor) return cb();
+    const t = setInterval(()=>{ if(window.editor){ clearInterval(t); cb(); } }, 80);
+  }
+
+  // init default UI state
+  (function init(){
+    addTab('index.html');
+    setActiveTab('index.html');
+    refreshFileList();
+  })();
+
+  // helper: addTab/setActiveTab already defined earlier (above), but ensure they exist
+  function addTab(name){ if(Array.from(tabsEl.children).some(c=>c.textContent===name)) return; const btn=document.createElement('button'); btn.className='tab'; btn.textContent=name; btn.onclick=()=> setActiveTab(name); tabsEl.appendChild(btn); }
+  function setActiveTab(name){ currentFile = name; Array.from(tabsEl.children).forEach(t=>t.classList.toggle('active', t.textContent===name)); Array.from(fileListEl.children).forEach(el=> el.classList.toggle('active', el.dataset.name===name)); if(window.editor) editor.setValue(files[name]||''); workspaceLabel.textContent='Workspace: default • '+name; setStatus('Opened '+name); }
+
+  // focus editor quick
+  document.getElementById('editor').addEventListener('click', ()=> window.editor && window.editor.focus());
+
+  // load JSZip (for later download all)
+  (function(){ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js'; document.head.appendChild(s); })();
+  </script>
+</body>
+                                                           </html>
